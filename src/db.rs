@@ -127,7 +127,36 @@ impl Db {
         return Ok(fetched);
     }
 
-    pub async fn get_user_pics(&self, user_id: i32) -> Result<Vec<String>, sqlx::Error> {
+    pub async fn get_user_to_rate(&self) -> Result<User, sqlx::Error> {
+        let query = String::from( // Probably a better algorithm is needed...
+            "SELECT u.id, u.username, 
+            (COUNT(CASE WHEN r.rater_id = u.id THEN 1 END) - COUNT(CASE WHEN r.rated_id = u.id THEN 1 END)) AS rating_difference
+            FROM users u
+            LEFT JOIN ratings r ON u.id = r.rater_id OR u.id = r.rated_id
+            GROUP BY u.id, u.username
+            ORDER BY rating_difference DESC
+            LIMIT 1;",
+        );
+
+        let first_row = sqlx::query(&query).fetch_one(&self.executor).await?;
+
+        let user_id = first_row.try_get("id").unwrap(); // Since id is not null this is safe
+        let user_pics = self.get_user_pics(user_id).await.unwrap(); // @TODO error handling
+
+        let fetched: User = User {
+            id: user_id,
+            password: "".into(),
+            username: first_row.try_get("username")?,
+            sexual_orientation: "".into(),
+            nationality: "".into(),
+            race: "".into(),
+            pics_urls: user_pics,
+        };
+
+        return Ok(fetched);
+    }
+
+    pub async fn get_user_pics(&self, user_id: u64) -> Result<Vec<String>, sqlx::Error> {
         let query = String::from(
             "select path_to_pic from users u join pictures p on p.owner_id = u.id where u.id = ?",
         );

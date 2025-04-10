@@ -16,7 +16,9 @@ pub async fn create_server() {
         .route("/helloworld", get(helloworld_handler))
         .route("/create_user", post(create_user))
         .route("/update_user",post(update_user))
-        .route("/get_user_data",post(get_user_data));
+        .route("/get_user_data",post(get_user_data))
+        .route("/get_user_to_rate",get(get_user_to_rate));
+
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
@@ -84,7 +86,7 @@ async fn update_user(body: String) -> impl IntoResponse {
         }
         Err(err) => {
             println!("{}",err);
-            return Err((StatusCode::BAD_REQUEST, "Invalid username").into_response());
+            return Err((StatusCode::BAD_REQUEST, "Invalid username or password").into_response());
         }
     }
 }
@@ -110,7 +112,7 @@ pub async fn get_user_data(body: String) -> impl IntoResponse {
         }
         Err(err) => {
             println!("{}",err);
-            return Err((StatusCode::BAD_REQUEST, "Invalid username").into_response());
+            return Err((StatusCode::BAD_REQUEST, "Invalid username or password").into_response());
         }
     }
 }
@@ -120,6 +122,20 @@ pub async fn get_user_data(body: String) -> impl IntoResponse {
 // Case 6 - Get ratings performed by me. Inputs: user id. Outputs: List of all ratings
 
 // Case 7 - Get next rating profile: Inputs: None. Outputs: Full user structure without ratings but with pics
+
+pub async fn get_user_to_rate() -> impl IntoResponse {
+   
+    let r = get_db().await.get_user_to_rate().await;
+    match r {
+        Ok(r) => {
+            return Ok(serde_json::to_string(&r).unwrap().into_response()); // todo this unwrap is unsafe
+        }
+        Err(err) => {
+            println!("{}",err);
+            return Err((StatusCode::INTERNAL_SERVER_ERROR, "Server error").into_response());
+        }
+    }
+}
 
 // Case 8 - Remove pic: Inputs: user id, pic url. Output: None (Ok/error)
 
