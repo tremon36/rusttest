@@ -1,7 +1,9 @@
+use axum::response::IntoResponse;
 use data_structures::{Rating, User};
 use sqlx::Pool;
+use sqlx::Row;
 use sqlx::mysql::{MySqlPoolOptions, MySqlRow};
-use sqlx::{Row};
+use tokio::sync::OnceCell;
 
 pub mod data_structures;
 
@@ -10,28 +12,88 @@ pub struct Db {
     executor: Pool<sqlx::MySql>,
 }
 
+static DB_INSTANCE: OnceCell<Db> = OnceCell::const_new();
+
+pub async fn get_db() -> &'static Db {
+    return DB_INSTANCE
+        .get_or_init(|| async {
+            let result = Db::new().await;
+            match result {
+                Ok(db) => {
+                    return db;
+                }
+                Err(_e) => {
+                    panic!("Error: can't connect to DB");
+                }
+            }
+        })
+        .await;
+}
+
 impl Db {
-    pub async fn new() -> Self {
+    pub async fn new() -> Result<Self, sqlx::Error> {
         let db_uri = "mysql://api_user:xiaobaixiong@localhost:3306/mydb";
         let mut db = Db {
             connected: false,
             executor: MySqlPoolOptions::new()
                 .max_connections(5)
                 .connect(&db_uri)
-                .await
-                .unwrap(),
+                .await?,
         };
         db.connected = true;
-        return db;
+        return Ok(db);
     }
 
-    pub async fn get_user_data(&self, user_id: i32) -> Result<User, sqlx::Error> {
-        // Doesn't return ratings, just user data
+    pub async fn create_user(&self, user: &User) -> Result<User, sqlx::Error> {
+        let query = String::from(
+            "insert into users (username, passwd, nationality,race, sexual_orientation) values (?, ?, ?, ?, ?)",
+        );
 
-        let query = String::from("select u.id,u.username,u.nationality,u.race,p.path_to_pic from users u join pictures p on p.owner_id = u.id where u.id = ?;");
+        let affected_rows = sqlx::query(&query)
+            .bind(&user.username)
+            .bind(&user.password)
+            .bind(&user.nationality)
+            .bind(&user.race)
+            .bind(&user.sexual_orientation)
+            .execute(&self.executor)
+            .await?;
+
+        let mut inserted_user = user.clone();
+        inserted_user.id = affected_rows.last_insert_id();
+
+        return Ok(inserted_user);
+    }
+
+    pub async fn update_user(&self, user: &User) -> Result<User, sqlx::Error> {
+        let query = String::from(
+            "update users set username = ?, passwd = ?, nationality = ?, race = ?, sexual_orientation = ? where id = ? and passwd = ?",
+        );
+        let affected_rows = sqlx::query(&query)
+            .bind(&user.username)
+            .bind(&user.password)
+            .bind(&user.nationality)
+            .bind(&user.race)
+            .bind(&user.sexual_orientation)
+            .bind(&user.id)
+            .bind(&user.password)
+            .execute(&self.executor)
+            .await?;
+
+        if affected_rows.rows_affected() <= 0 {
+            return Err(sqlx::Error::RowNotFound);
+        }
+
+        return Ok(user.clone());
+    }
+
+    pub async fn get_user_data(&self, user: &User) -> Result<User, sqlx::Error> {
+        let query = String::from(
+            "select u.id,u.username,u.nationality,u.race,u.sexual_orientation,p.path_to_pic from users u left join pictures p on p.owner_id = u.id where u.id = ? and u.passwd = ?",
+        );
 
         let rows = sqlx::query(&query)
-            .bind(user_id)
+            .bind(&user.id)
+            .bind(&user.password)
             .fetch_all(&self.executor)
             .await?;
 
@@ -45,13 +107,18 @@ impl Db {
         let mut pics: Vec<String> = Vec::new();
 
         for row in &rows {
-            pics.push(row.try_get("path_to_pic").unwrap());
+            let img_url: Option<String> = row.try_get("path_to_pic")?;
+
+            if img_url.is_some() {
+                pics.push(img_url.expect("this should never panic"));
+            }
         }
 
-
         let fetched: User = User {
-            id: user_id,
+            id: user.id,
+            password: "".into(),
             username: first_row.try_get("username")?,
+            sexual_orientation: first_row.try_get("sexual_orientation")?,
             nationality: first_row.try_get("nationality")?,
             race: first_row.try_get("race")?,
             pics_urls: pics,

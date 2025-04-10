@@ -1,5 +1,4 @@
 use db::data_structures::User;
-use db::Db;
 
 mod db;
 mod server;
@@ -11,7 +10,7 @@ async fn main() {
 
     // Connect to db
 
-    let dbv: Db = Db::new().await;
+  /*  let dbv: Db = Db::new().await;
 
     let r = dbv.get_user_data(3).await;
     let mut user = User::new();
@@ -29,7 +28,7 @@ async fn main() {
     }
 
     println!("{}",user);
-
+*/
     // Create a server
 
     server::create_server().await;

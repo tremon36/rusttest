@@ -1,6 +1,7 @@
 create table users (
     id integer primary key auto_increment,
     username varchar(50) unique not null,
+    sexual_orientation varchar(20) not null,
     passwd varchar(50) not null,
     created_at timestamp default now(),
     nationality varchar(50),

@@ -1,33 +1,34 @@
+use serde::{Deserialize, Serialize};
+
 pub struct Rating {
-    pub id: i32,
+    pub id: u64,
     pub mark: i32,
     pub rater_id: i32,
     pub rater_username: String
 }
 
+#[derive(Clone)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct User {
-    pub id: i32,
+    pub id: u64,
     pub username: String,
+    pub password: String,
     pub nationality: String,
+    pub sexual_orientation: String,
     pub race: String,
     pub pics_urls: Vec<String>
-}
-
-impl User {
-    pub fn new() -> Self {
-        return User { id: -1, username: "".into(), nationality: "".into(), race: "".into(), pics_urls: Vec::new() }
-    }
 }
 
 impl std::fmt::Display for User {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "User {{\n  id: {},\n  username: {},\n  nationality: {},\n  race: {},\n  pics_urls: [{}]\n}}",
+            "User {{\n  id: {},\n  username: {},\n  nationality: {},\n  race: {},\n orientation: {}\n,  pics_urls: [{}]\n}}",
             self.id,
             self.username,
             self.nationality,
             self.race,
+            self.sexual_orientation,
             self.pics_urls.join(", ")
         )
     }

@@ -1,9 +1,22 @@
-use axum::{Router, response::Html, routing::get};
+use axum::{
+    Router,
+    extract::Json,
+    http::StatusCode,
+    response::{Html, IntoResponse},
+    routing::{get, post},
+};
+
+use serde::{Deserialize, de::IntoDeserializer};
+
+use crate::db::{data_structures::User, get_db};
 
 pub async fn create_server() {
     let app = Router::new()
         .route("/", get(root_handler))
-        .route("/helloworld", get(helloworld_handler));
+        .route("/helloworld", get(helloworld_handler))
+        .route("/create_user", post(create_user))
+        .route("/update_user",post(update_user))
+        .route("/get_user_data",post(get_user_data));
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
@@ -26,9 +39,81 @@ async fn helloworld_handler() -> Html<String> {
 
 // Case 1 - Create a user : Inputs: Full user structure, without ratings but with pics (optional). Outputs: OK HTTP / ERROR HTTP
 
+async fn create_user(body: String) -> impl IntoResponse {
+    let pl: Result<User, _> = serde_json::from_str(&body);
+    let user: User;
+    match pl {
+        Ok(r) => {
+            user = r;
+        }
+        Err(_err) => {
+            return Err((StatusCode::BAD_REQUEST, "Invalid JSON data").into_response());
+        }
+    }
+    println!("{}", user.username);
+    let r = get_db().await.create_user(&user).await;
+    match r {
+        Ok(r) => {
+            return Ok(format!("created user {}", r).into_response());
+        }
+        Err(err) => {
+            println!("{}",err);
+            return Err((StatusCode::BAD_REQUEST, "Invalid username").into_response());
+        }
+    }
+}
+
 // Case 2 - Update user attributes: Inputs: Full user structure. Pics and ratings wont be upated. Outputs OK HTTP / ERROR HTTP
 
-// Case 3 - Get my data: Inputs: user id. Outputs: Full user structure without ratings but with pics 
+async fn update_user(body: String) -> impl IntoResponse {
+    let pl: Result<User, _> = serde_json::from_str(&body);
+    let user: User;
+    match pl {
+        Ok(r) => {
+            user = r;
+        }
+        Err(_err) => {
+            return Err((StatusCode::BAD_REQUEST, "Invalid JSON data").into_response());
+        }
+    }
+
+    let r = get_db().await.update_user(&user).await;
+    match r {
+        Ok(r) => {
+            return Ok(format!("updated user {}", r).into_response());
+        }
+        Err(err) => {
+            println!("{}",err);
+            return Err((StatusCode::BAD_REQUEST, "Invalid username").into_response());
+        }
+    }
+}
+
+// Case 3 - Get my data: Inputs: user id. Outputs: Full user structure without ratings but with pics
+
+pub async fn get_user_data(body: String) -> impl IntoResponse {
+    let pl: Result<User, _> = serde_json::from_str(&body);
+    let user: User;
+    match pl {
+        Ok(r) => {
+            user = r;
+        }
+        Err(_err) => {
+            return Err((StatusCode::BAD_REQUEST, "Invalid JSON data").into_response());
+        }
+    }
+    
+    let r = get_db().await.get_user_data(&user).await;
+    match r {
+        Ok(r) => {
+            return Ok(serde_json::to_string(&r).unwrap().into_response()); // todo this unwrap is unsafe
+        }
+        Err(err) => {
+            println!("{}",err);
+            return Err((StatusCode::BAD_REQUEST, "Invalid username").into_response());
+        }
+    }
+}
 
 // Case 5 - Get ratings performed on me. Inputs: user id. Outputs: List of all ratings
 
@@ -49,5 +134,3 @@ async fn helloworld_handler() -> Html<String> {
 // Case 2: delete pic: Will delete a pic from disk. Inputs: pic URL. Outputs: None
 
 // Case 3: create pic: Will create a pic on disk and generate a URL for it
-
-

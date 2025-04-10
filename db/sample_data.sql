@@ -1,10 +1,11 @@
 -- Insert users
-insert into users (username, passwd, nationality, race) values
-('user1', 'password1', 'USA', 'Caucasian'),
-('user2', 'password2', 'Canada', 'Asian'),
-('user3', 'password3', 'UK', 'Hispanic'),
-('user4', 'password4', 'Australia', 'African'),
-('user5', 'password5', 'India', 'Mixed');
+INSERT INTO users (username, passwd, nationality, race, sexual_orientation) VALUES
+('user1', 'password1', 'USA', 'Caucasian', 'heterosexual'),
+('user2', 'password2', 'Canada', 'Asian', 'homosexual'),
+('user3', 'password3', 'UK', 'Hispanic', 'bisexual'),
+('user4', 'password4', 'Australia', 'African', 'homosexual'),
+('user5', 'password5', 'India', 'Mixed', 'heterosexual');
+
 
 -- Insert pictures for each user (3 pics per user)
 insert into pictures (owner_id, path_to_pic) values
